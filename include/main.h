@@ -12,7 +12,9 @@
 #include "driver/rtc_io.h"
 #include "soc/rtc.h"
 #include "soc/soc_caps.h"
+#include "soc/soc.h"
 #include "driver/uart.h"
+#include "driver/timer.h"
 #include "driver/gpio.h"
 #include "nvs_flash.h"
 

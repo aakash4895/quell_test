@@ -22,11 +22,21 @@
 #define GPIO_INPUT_PIN_SEL  ((1ULL<<GPIO_INPUT_IO_0) | (1ULL<<GPIO_INPUT_IO_1))
 #define ESP_INTR_FLAG_DEFAULT 0
 
-static QueueHandle_t gpio_evt_queue = NULL;
+#define TIMER_RESOLUTION_HZ   1000000 // 1MHz resolution
+#define TIMER_ALARM_PERIOD_S  30     // Alarm period 30s
+
+#define INACTIVITY_TIMER_COUNT      TIMER_ALARM_PERIOD_S * TIMER_RESOLUTION_HZ // period = 30s
 
 #define PATTERN_CHR_NUM 1
 
 #define MAX_DATA_LEN 24
+
+static QueueHandle_t gpio_evt_queue = NULL;
+
+int group = 0;
+int timer = 0;
+
+static const char *TAG = "Inactivity Timer";
 
 union{
     int hex;
@@ -166,6 +176,7 @@ static void uart_task(void *arg)
 
     while (1) {
         if(xQueueReceive(uart1_queue, (void * )&event, (TickType_t)portMAX_DELAY)) {
+            ESP_ERROR_CHECK(timer_set_counter_value(group, timer, 0));
             bzero(data, BUF_SIZE);
             ESP_LOGI(TAG_UART, "uart[%d] event:", HANDHELD_UART);
             switch(event.type) {
@@ -275,6 +286,8 @@ static void gpio_task_example(void* arg)
             if(gpio_get_level(io_num)==1&&io_num==4){
                 enable_sleep(charging);
             }
+            else if(io_num==2)
+                ESP_ERROR_CHECK(timer_set_counter_value(group, timer, 0));
         }
     }
 }
@@ -311,7 +324,40 @@ void gpio_init(){
     gpio_isr_handler_add(GPIO_INPUT_IO_1, gpio_isr_handler, (void*) GPIO_INPUT_IO_1);
 }
 
+static bool IRAM_ATTR inactivity_timer_cb(void *args)
+{
+    BaseType_t high_task_awoken = pdFALSE;
+        
+    enable_sleep(other);
+    // return whether we need to yield at the end of ISR
+    return (high_task_awoken == pdTRUE);
+}
 
+void inactivity_timer(void){
+
+    
+    ESP_LOGI(TAG, "Create timer handle");
+    
+    timer_config_t config = {
+        // .clk_src = TIMER_SRC_CLK_DEFAULT,
+        .divider = APB_CLK_FREQ / TIMER_RESOLUTION_HZ,
+        .counter_dir = TIMER_COUNT_UP,
+        .counter_en = TIMER_PAUSE,
+        .alarm_en = TIMER_ALARM_EN,
+        .auto_reload = false,
+    };
+    ESP_ERROR_CHECK(timer_init(group, timer, &config));
+
+    // For the timer counter to a initial value
+    ESP_ERROR_CHECK(timer_set_counter_value(group, timer, 0));
+    // Set alarm value and enable alarm interrupt
+    ESP_ERROR_CHECK(timer_set_alarm_value(group, timer, INACTIVITY_TIMER_COUNT));
+    ESP_ERROR_CHECK(timer_enable_intr(group, timer));
+    // Hook interrupt callback
+    ESP_ERROR_CHECK(timer_isr_callback_add(group, timer, inactivity_timer_cb, NULL, 0));
+    // Start timer
+    ESP_ERROR_CHECK(timer_start(group, timer));
+}
 
 void app_main()
 {

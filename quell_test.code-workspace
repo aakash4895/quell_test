@@ -5,5 +5,10 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"files.associations": {
+			"uart.h": "c",
+			"esp_intr_alloc.h": "c"
+		}
+	}
 }

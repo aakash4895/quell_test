@@ -1,8 +1,8 @@
 #include "esp_wifi.h"
 #include "main.h"
 
-#define ESP_WIFI_SSID      "VM5102424"
-#define ESP_WIFI_PASS      "nh5HykfnY9qv"
+#define ESP_WIFI_SSID      ""
+#define ESP_WIFI_PASS      ""
 #define ESP_MAXIMUM_RETRY  10
 
 #define CONFIG_ESP_WIFI_AUTH_WPA_WPA2_PSK 1

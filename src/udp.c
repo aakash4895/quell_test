@@ -4,8 +4,9 @@
 #include <lwip/netdb.h>
 #include "main.h"
 
-#define HOST_IP_ADDR        "192.168.0.19"
+#define HOST_IP_ADDR        ""
 #define PORT                8080
+#define NUM_RETRY           10
 
 static const char *payload = "PING";
 
@@ -65,7 +66,8 @@ void udp_client_task(void *pvParameters)
                 rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
                 ESP_LOGI(TAG, "Received %d bytes from %s:", len, host_ip);
                 ESP_LOGI(TAG, "%s", rx_buffer);
-                if (strncmp(rx_buffer, "OK: ", 4) == 0) {
+                if (strncmp(rx_buffer, "OK", 2) == 0) {
+                    fails=0;
                     ESP_LOGI(TAG, "Received expected message, reconnecting");
                     break;
                 }
@@ -78,7 +80,7 @@ void udp_client_task(void *pvParameters)
             shutdown(sock, 0);
             close(sock);
         }
-        if(fails>=10){
+        if(fails>=NUM_RETRY){
             enable_sleep(other);
         }
     }
